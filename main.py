@@ -17,26 +17,33 @@ from flask import Flask, render_template, Response
 from camera import VideoCamera
 import detect_face
 import tensorflow as tf
+import get_face
+import numpy as np
+import cv2
 
 app = Flask(__name__)
 
 #pnet, rnet, onet
+frame = np.ones([512,512,3])
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
 def gen(camera):
-    global pnet, rnet, onet
-    global frame, frame_face
+    global frame
     while True:
-        frame, frame_face = camera.get_frame(pnet, rnet, onet)
-        if frame_face == 0:
-            yield (b'--frame\r\n'
-                b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n\r\n')
-        else :
-            yield (b'--frame\r\n'
-                  b'Content-Type: image/jpeg\r\n\r\n' + frame_face + b'\r\n\r\n')
+        frame = camera.get_frame()
+        _, capture = cv2.imencode('.jpg', frame)
+        capture=capture.tobytes()
+        yield (b'--frame\r\n'
+            b'Content-Type: image/jpeg\r\n\r\n' + capture + b'\r\n\r\n')
+
+def gen2():
+    while True:
+        face = get_face.get_face(frame,pnet,rnet,onet)
+        yield (b'--frame\r\n'
+            b'Content-Type: image/jpeg\r\n\r\n' + face + b'\r\n\r\n')
 
 
 @app.route('/video_feed')
@@ -44,16 +51,16 @@ def video_feed():
     return Response(gen(VideoCamera()),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
-#@app.route('/video_feed_face')
-#def video_feed_face():
-#    return Response(gen2(),
-#                    mimetype='multipart/x-mixed-replace; boundary=frame')
+@app.route('/video_feed_face')
+def video_feed_face():
+    return Response(gen2(),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
 if __name__ == '__main__':
     global pnet, rnet, onet
     with tf.Graph().as_default():
-        gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.25)
+        gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.2)
         sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False))
         with sess.as_default():
             pnet, rnet, onet = detect_face.create_mtcnn(sess, None)
