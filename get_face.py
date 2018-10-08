@@ -6,20 +6,21 @@ from scipy import misc
 
 
     
-def get_face(image, pnet, rnet, onet):
-    # We are using Motion JPEG, but OpenCV defaults to capture raw images,
-    # so we must encode it into JPEG in order to correctly display the
-    # video stream.
+def get_face(image, pnet, rnet, onet, i):
     
     margin=20
     image_size=256
     minsize = 20 # minimum size of face
     threshold = [ 0.6, 0.7, 0.7 ]  # three steps's threshold
     factor = 0.709 # scale factor
-    detect_multiple_faces=False
+    detect_multiple_faces=True
     flag=0
     bounding_boxes, _ = detect_face.detect_face(image, minsize, pnet, rnet, onet, threshold, factor)
     nrof_faces = bounding_boxes.shape[0]
+    out=np.zeros([image_size,1,3])
+    if i % 10 ==0:
+        print(bounding_boxes.shape)
+        print(bounding_boxes)
     if nrof_faces>0:
         det = bounding_boxes[:,0:4]
         det_arr = []
@@ -46,9 +47,10 @@ def get_face(image, pnet, rnet, onet):
             bb[3] = np.minimum(det[3]+margin/2, img_size[0])
             cropped = image[bb[1]:bb[3],bb[0]:bb[2],:]
             scaled = misc.imresize(cropped, (image_size, image_size), interp='bilinear')
-            _, jpeg_face = cv2.imencode('.jpg', scaled)
+            out = np.concatenate((out,scaled),axis=1)
             flag=1
     if flag == 1 :
+        _, jpeg_face = cv2.imencode('.jpg', out)
         return jpeg_face.tobytes()
     else:
         img = np.ones((128,128,3)) #img is the background image which appears when you run the program

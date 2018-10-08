@@ -40,8 +40,10 @@ def gen(camera):
             b'Content-Type: image/jpeg\r\n\r\n' + capture + b'\r\n\r\n')
 
 def gen2():
+    i = 0
     while True:
-        face = get_face.get_face(frame,pnet,rnet,onet)
+        face = get_face.get_face(frame,pnet,rnet,onet,i)
+        i=i+1
         yield (b'--frame\r\n'
             b'Content-Type: image/jpeg\r\n\r\n' + face + b'\r\n\r\n')
 
